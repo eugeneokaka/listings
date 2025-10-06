@@ -1,18 +1,18 @@
 import { PrismaClient } from "@prisma/client";
 import { auth } from "@clerk/nextjs/server";
-import { NextResponse } from "next/server";
+import { NextResponse, NextRequest } from "next/server";
 
 const prisma = new PrismaClient();
 
 // ✅ GET a single listing with images, owner, comments
 export async function GET(
-  req: Request,
+  req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const id = (await params).id;
   try {
     const listing = await prisma.listing.findUnique({
-      where: { id: id },
+      where: { id },
       include: {
         images: true,
         owner: {
@@ -51,9 +51,10 @@ export async function GET(
 
 // ✅ POST a comment
 export async function POST(
-  req: Request,
-  { params }: { params: { id: string } }
+  req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const id = (await params).id;
   try {
     const { userId } = await auth();
     if (!userId)
@@ -75,7 +76,7 @@ export async function POST(
     const comment = await prisma.comment.create({
       data: {
         content,
-        listingId: params.id,
+        listingId: id,
         authorId: user.id,
       },
       include: {
