@@ -26,6 +26,7 @@ export default function CreateListingPage() {
     price: "",
     area: "",
     location: "",
+    phone: "", // 🆕 Added phone field
     mapUrl: "",
     amenities: "",
   });
@@ -59,7 +60,6 @@ export default function CreateListingPage() {
       const data = await res.json();
 
       if (!res.ok) {
-        // 🧠 Show server error message in toast
         toast.error(data.error || "Error creating listing");
         return;
       }
@@ -166,6 +166,20 @@ export default function CreateListingPage() {
               />
             </div>
 
+            {/* 🆕 Phone Number */}
+            <div className="space-y-1">
+              <Label htmlFor="phone">Phone Number</Label>
+              <Input
+                id="phone"
+                name="phone"
+                type="tel"
+                value={form.phone}
+                onChange={handleChange}
+                placeholder="e.g. +254712345678"
+                required
+              />
+            </div>
+
             {/* Map URL */}
             <div className="space-y-1">
               <Label htmlFor="mapUrl">Google Map URL (optional)</Label>
@@ -221,11 +235,11 @@ export default function CreateListingPage() {
               )}
             </div>
 
-            {/* Submit Button */}
+            {/* Submit Button — themed red */}
             <Button
               type="submit"
               disabled={loading}
-              className="w-full mt-6 bg-gradient-to-r from-indigo-600 to-sky-500 text-white hover:opacity-90"
+              className="w-full mt-6 bg-red-600 hover:bg-red-700 text-white transition"
             >
               {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               {loading ? "Creating Listing..." : "Create Listing"}

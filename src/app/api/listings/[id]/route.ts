@@ -4,7 +4,7 @@ import { NextResponse, NextRequest } from "next/server";
 
 const prisma = new PrismaClient();
 
-// ✅ GET a single listing with images, owner, comments
+// ✅ GET a single listing with images, owner, comments & replies
 export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -19,9 +19,18 @@ export async function GET(
           select: { firstname: true, lastname: true, image: true },
         },
         comments: {
+          where: { parentId: null }, // top-level comments only
           include: {
             author: {
               select: { firstname: true, lastname: true, image: true },
+            },
+            replies: {
+              include: {
+                author: {
+                  select: { firstname: true, lastname: true, image: true },
+                },
+              },
+              orderBy: { createdAt: "asc" },
             },
           },
           orderBy: { createdAt: "desc" },
@@ -33,9 +42,9 @@ export async function GET(
       return NextResponse.json({ error: "Listing not found" }, { status: 404 });
     }
 
-    // Increase views count
+    // increment views
     await prisma.listing.update({
-      where: { id: id },
+      where: { id },
       data: { views: { increment: 1 } },
     });
 
@@ -49,7 +58,7 @@ export async function GET(
   }
 }
 
-// ✅ POST a comment
+// ✅ POST a comment or reply
 export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -61,7 +70,7 @@ export async function POST(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const body = await req.json();
-    const { content } = body;
+    const { content, parentId } = body;
 
     if (!content)
       return NextResponse.json(
@@ -78,10 +87,18 @@ export async function POST(
         content,
         listingId: id,
         authorId: user.id,
+        parentId: parentId || null,
       },
       include: {
         author: {
           select: { firstname: true, lastname: true, image: true },
+        },
+        replies: {
+          include: {
+            author: {
+              select: { firstname: true, lastname: true, image: true },
+            },
+          },
         },
       },
     });

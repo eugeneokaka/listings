@@ -6,11 +6,90 @@ import Image from "next/image";
 import { toast } from "sonner";
 import { Loader2, Heart } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { useUser } from "@clerk/nextjs"; // ✅ Import from Clerk
+import { useUser } from "@clerk/nextjs";
+
+// 🧩 Reusable comment item with reply UI
+function CommentItem({
+  comment,
+  onReply,
+}: {
+  comment: any;
+  onReply: (replyContent: string) => void;
+}) {
+  const [replying, setReplying] = useState(false);
+  const [replyText, setReplyText] = useState("");
+
+  return (
+    <div className="border p-3 rounded-lg">
+      <div className="flex items-center gap-2 mb-1">
+        <Avatar className="w-8 h-8 border">
+          <AvatarFallback>
+            <div className="w-8 h-8 rounded-full bg-red-600" />
+          </AvatarFallback>
+        </Avatar>
+        <p className="font-medium text-sm">
+          {comment.author
+            ? `${comment.author.firstname} ${comment.author.lastname}`
+            : "Anonymous"}
+        </p>
+        <span className="text-xs text-gray-400">
+          {new Date(comment.createdAt).toLocaleDateString()}
+        </span>
+      </div>
+
+      <p className="text-gray-700">{comment.content}</p>
+
+      <button
+        onClick={() => setReplying(!replying)}
+        className="text-xs text-red-600 mt-1 hover:underline"
+      >
+        Reply
+      </button>
+
+      {replying && (
+        <div className="mt-2 flex gap-2">
+          <input
+            value={replyText}
+            onChange={(e) => setReplyText(e.target.value)}
+            placeholder="Write a reply..."
+            className="flex-1 border rounded-lg px-2 py-1 text-sm"
+          />
+          <button
+            onClick={() => {
+              if (!replyText.trim()) return;
+              onReply(replyText);
+              setReplyText("");
+              setReplying(false);
+            }}
+            className="bg-red-600 text-white px-3 py-1 rounded-lg text-sm"
+          >
+            Send
+          </button>
+        </div>
+      )}
+
+      {/* Replies */}
+      {comment.replies?.length > 0 && (
+        <div className="ml-6 mt-3 space-y-2 border-l pl-3">
+          {comment.replies.map((r: any) => (
+            <div key={r.id}>
+              <p className="text-sm font-medium">
+                {r.author
+                  ? `${r.author.firstname} ${r.author.lastname}`
+                  : "Anonymous"}
+              </p>
+              <p className="text-gray-700 text-sm">{r.content}</p>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function ListingPage() {
   const { id } = useParams();
-  const { user, isSignedIn } = useUser(); // ✅ Clerk user hook
+  const { user, isSignedIn } = useUser();
 
   const [listing, setListing] = useState<any>(null);
   const [comment, setComment] = useState("");
@@ -26,7 +105,6 @@ export default function ListingPage() {
         if (!res.ok) throw new Error(data.error || "Failed to load listing");
         setListing(data);
 
-        // ✅ Check if this listing is already in user's favorites
         const favRes = await fetch(`/api/favorites/check?listingId=${id}`);
         const favData = await favRes.json();
         if (favRes.ok) setIsFavorite(favData.isFavorite);
@@ -41,7 +119,6 @@ export default function ListingPage() {
 
   const handleFavorite = async () => {
     if (!isSignedIn) {
-      // ✅ Alert unauthenticated users
       alert("Please login to add listings to your favorites ❤️");
       return;
     }
@@ -173,18 +250,30 @@ export default function ListingPage() {
             </div>
           </div>
 
-          {/* 👤 Owner */}
-          <div className="mt-6 flex items-center gap-3">
-            <Avatar className="w-10 h-10 border">
-              <AvatarFallback>
-                <div className="w-10 h-10 rounded-full bg-red-600" />
-              </AvatarFallback>
-            </Avatar>
+          {/* 👤 Owner + Phone */}
+          <div className="mt-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-t pt-4">
+            <div className="flex items-center gap-3">
+              <Avatar className="w-10 h-10 border">
+                <AvatarFallback>
+                  <div className="w-10 h-10 rounded-full bg-red-600" />
+                </AvatarFallback>
+              </Avatar>
+              <p className="text-gray-700">
+                Listed by{" "}
+                <span className="font-medium">
+                  {listing.owner.firstname} {listing.owner.lastname}
+                </span>
+              </p>
+            </div>
+
             <p className="text-gray-700">
-              Listed by{" "}
-              <span className="font-medium">
-                {listing.owner.firstname} {listing.owner.lastname}
-              </span>
+              <strong>Phone:</strong>{" "}
+              <a
+                href={`tel:${listing.phone}`}
+                className="text-red-600 hover:underline ml-1"
+              >
+                {listing.phone}
+              </a>
             </p>
           </div>
         </div>
@@ -208,30 +297,38 @@ export default function ListingPage() {
             </button>
           </div>
 
-          <div className="space-y-4">
-            {listing.comments.length === 0 && (
-              <p className="text-gray-500">No comments yet.</p>
-            )}
+          {listing.comments.length === 0 && (
+            <p className="text-gray-500">No comments yet.</p>
+          )}
 
+          <div className="space-y-4">
             {listing.comments.map((c: any) => (
-              <div key={c.id} className="border p-3 rounded-lg">
-                <div className="flex items-center gap-2 mb-1">
-                  <Avatar className="w-8 h-8 border">
-                    <AvatarFallback>
-                      <div className="w-8 h-8 rounded-full bg-red-600" />
-                    </AvatarFallback>
-                  </Avatar>
-                  <p className="font-medium text-sm">
-                    {c.author
-                      ? `${c.author.firstname} ${c.author.lastname}`
-                      : "Anonymous"}
-                  </p>
-                  <span className="text-xs text-gray-400">
-                    {new Date(c.createdAt).toLocaleDateString()}
-                  </span>
-                </div>
-                <p className="text-gray-700">{c.content}</p>
-              </div>
+              <CommentItem
+                key={c.id}
+                comment={c}
+                onReply={async (replyContent: string) => {
+                  const res = await fetch(`/api/listings/${id}`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                      content: replyContent,
+                      parentId: c.id,
+                    }),
+                  });
+                  const data = await res.json();
+                  if (!res.ok) return toast.error(data.error);
+
+                  // update local state
+                  setListing((prev: any) => ({
+                    ...prev,
+                    comments: prev.comments.map((cm: any) =>
+                      cm.id === c.id
+                        ? { ...cm, replies: [...cm.replies, data] }
+                        : cm
+                    ),
+                  }));
+                }}
+              />
             ))}
           </div>
         </div>
