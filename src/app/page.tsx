@@ -39,6 +39,13 @@ export default function HomePage() {
     fetchListings();
   };
 
+  // 🧮 Helper to format price to KSH
+  const formatPrice = (price: number) => {
+    return `Ksh ${price.toLocaleString("en-KE", {
+      minimumFractionDigits: 0,
+    })}`;
+  };
+
   return (
     <main className="min-h-screen bg-white text-black px-6 py-10">
       <section className="max-w-6xl mx-auto">
@@ -140,12 +147,18 @@ export default function HomePage() {
                   <p className="text-sm text-gray-600 line-clamp-2 mb-2">
                     {listing.description}
                   </p>
+
+                  {/* 💰 Show price in KSH */}
                   <p className="text-red-600 font-bold mb-1">
-                    ${listing.price}
+                    {formatPrice(listing.price)}
                   </p>
-                  <p className="text-sm text-gray-500 mb-1">
+
+                  {/* 📍 Show area and location */}
+                  <p className="text-sm text-gray-700 mb-1">
+                    {listing.area ? `${listing.area}, ` : ""}
                     {listing.location}
                   </p>
+
                   <p className="text-xs text-gray-400 mb-2">
                     {listing.views} views
                   </p>

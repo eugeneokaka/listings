@@ -4,7 +4,7 @@ import { PrismaClient } from "@prisma/client";
 
 const prisma = new PrismaClient();
 
-// ✅ GET — Fetch listings with filters
+// ✅ GET — Fetch listings with filters (max 8)
 export async function GET(req: Request) {
   try {
     const { searchParams } = new URL(req.url);
@@ -37,6 +37,7 @@ export async function GET(req: Request) {
       where: whereClause,
       include: { images: true, owner: true },
       orderBy: { createdAt: "desc" },
+      take: 8, // ⬅️ limit results to 8
     });
 
     return NextResponse.json(listings);

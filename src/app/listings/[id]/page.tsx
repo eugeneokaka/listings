@@ -8,7 +8,7 @@ import { Loader2, Heart } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { useUser } from "@clerk/nextjs";
 
-// 🧩 Reusable comment item with reply UI
+// 🧩 Comment item with reply support
 function CommentItem({
   comment,
   onReply,
@@ -33,14 +33,16 @@ function CommentItem({
             : "Anonymous"}
         </p>
         <span className="text-xs text-gray-400">
-          {new Date(comment.createdAt).toLocaleDateString()}
+          {comment.createdAt
+            ? new Date(comment.createdAt).toLocaleDateString()
+            : ""}
         </span>
       </div>
 
       <p className="text-gray-700">{comment.content}</p>
 
       <button
-        onClick={() => setReplying(!replying)}
+        onClick={() => setReplying((s) => !s)}
         className="text-xs text-red-600 mt-1 hover:underline"
       >
         Reply
@@ -103,13 +105,19 @@ export default function ListingPage() {
         const res = await fetch(`/api/listings/${id}`);
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || "Failed to load listing");
-        setListing(data);
+
+        setListing({
+          ...data,
+          images: data.images ?? [],
+          amenities: data.amenities ?? [],
+          comments: data.comments ?? [],
+        });
 
         const favRes = await fetch(`/api/favorites/check?listingId=${id}`);
         const favData = await favRes.json();
-        if (favRes.ok) setIsFavorite(favData.isFavorite);
+        if (favRes.ok) setIsFavorite(Boolean(favData.isFavorite));
       } catch (err: any) {
-        toast.error(err.message);
+        toast.error(err?.message || "Failed to load listing");
       } finally {
         setLoading(false);
       }
@@ -134,33 +142,41 @@ export default function ListingPage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed to update favorite");
 
-      setIsFavorite(data.isFavorite);
-      toast.success(data.message);
+      setIsFavorite(Boolean(data.isFavorite));
+      toast.success(data.message || "Updated favorite");
     } catch (err: any) {
-      toast.error(err.message);
+      toast.error(err?.message || "Failed to update favorite");
     } finally {
       setFavLoading(false);
     }
   };
 
-  const handleComment = async () => {
-    if (!comment.trim()) return;
+  const postCommentOrReply = async (content: string, parentId?: string) => {
+    if (!content.trim()) return null;
     try {
       const res = await fetch(`/api/listings/${id}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ content: comment }),
+        body: JSON.stringify({ content, parentId }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Failed to post comment");
-      setListing((prev: any) => ({
-        ...prev,
-        comments: [data, ...prev.comments],
-      }));
-      setComment("");
+      if (!res.ok) throw new Error(data.error || "Failed to post");
+      return data;
     } catch (err: any) {
-      toast.error(err.message);
+      toast.error(err?.message || "Failed to post comment");
+      return null;
     }
+  };
+
+  const handleComment = async () => {
+    if (!comment.trim()) return;
+    const created = await postCommentOrReply(comment);
+    if (!created) return;
+    setListing((prev: any) => ({
+      ...prev,
+      comments: [created, ...(prev?.comments ?? [])],
+    }));
+    setComment("");
   };
 
   if (loading)
@@ -180,7 +196,10 @@ export default function ListingPage() {
       <div className="grid gap-6">
         {/* 🖼️ Images */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 rounded-lg overflow-hidden">
-          {listing.images.map((img: any) => (
+          {(listing.images.length > 0
+            ? listing.images
+            : [{ id: "placeholder", url: "/placeholder.jpg" }]
+          ).map((img: any) => (
             <Image
               key={img.id}
               src={img.url}
@@ -217,7 +236,7 @@ export default function ListingPage() {
 
           <p className="text-gray-600">{listing.description}</p>
 
-          <div className="mt-4 flex flex-col sm:flex-row sm:justify-between text-sm text-gray-500">
+          <div className="mt-4 flex flex-col sm:flex-row sm:justify-between text-sm text-gray-500 space-y-2 sm:space-y-0">
             <p>
               <strong>Price:</strong> ${listing.price}
             </p>
@@ -226,6 +245,16 @@ export default function ListingPage() {
             </p>
             <p>
               <strong>Location:</strong> {listing.location}
+              {listing.mapUrl && (
+                <a
+                  href={listing.mapUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-red-600 hover:underline ml-2"
+                >
+                  View on Map
+                </a>
+              )}
             </p>
             <p>
               <strong>Category:</strong> {listing.category}
@@ -235,11 +264,28 @@ export default function ListingPage() {
             </p>
           </div>
 
+          {/* 🗺️ Map URL only */}
+          {listing.mapUrl && (
+            <div className="mt-6">
+              <h2 className="font-semibold mb-2">Map Location:</h2>
+              <p className="text-sm text-gray-700 break-all">
+                <a
+                  href={listing.mapUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-red-600 hover:underline"
+                >
+                  {listing.mapUrl}
+                </a>
+              </p>
+            </div>
+          )}
+
           {/* 🏠 Amenities */}
           <div className="mt-4">
             <h2 className="font-semibold mb-2">Amenities:</h2>
             <div className="flex flex-wrap gap-2">
-              {listing.amenities.map((a: string, i: number) => (
+              {(listing.amenities ?? []).map((a: string, i: number) => (
                 <span
                   key={i}
                   className="bg-slate-100 px-3 py-1 rounded-full text-sm"
@@ -261,19 +307,24 @@ export default function ListingPage() {
               <p className="text-gray-700">
                 Listed by{" "}
                 <span className="font-medium">
-                  {listing.owner.firstname} {listing.owner.lastname}
+                  {listing.owner?.firstname ?? "Unknown"}{" "}
+                  {listing.owner?.lastname ?? ""}
                 </span>
               </p>
             </div>
 
             <p className="text-gray-700">
               <strong>Phone:</strong>{" "}
-              <a
-                href={`tel:${listing.phone}`}
-                className="text-red-600 hover:underline ml-1"
-              >
-                {listing.phone}
-              </a>
+              {listing.phone ? (
+                <a
+                  href={`tel:${listing.phone}`}
+                  className="text-red-600 hover:underline ml-1"
+                >
+                  {listing.phone}
+                </a>
+              ) : (
+                <span className="text-gray-500 ml-1">Not provided</span>
+              )}
             </p>
           </div>
         </div>
@@ -297,33 +348,26 @@ export default function ListingPage() {
             </button>
           </div>
 
-          {listing.comments.length === 0 && (
+          {(listing.comments ?? []).length === 0 && (
             <p className="text-gray-500">No comments yet.</p>
           )}
 
           <div className="space-y-4">
-            {listing.comments.map((c: any) => (
+            {(listing.comments ?? []).map((c: any) => (
               <CommentItem
                 key={c.id}
                 comment={c}
                 onReply={async (replyContent: string) => {
-                  const res = await fetch(`/api/listings/${id}`, {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({
-                      content: replyContent,
-                      parentId: c.id,
-                    }),
-                  });
-                  const data = await res.json();
-                  if (!res.ok) return toast.error(data.error);
-
-                  // update local state
+                  const created = await postCommentOrReply(replyContent, c.id);
+                  if (!created) return;
                   setListing((prev: any) => ({
                     ...prev,
                     comments: prev.comments.map((cm: any) =>
                       cm.id === c.id
-                        ? { ...cm, replies: [...cm.replies, data] }
+                        ? {
+                            ...cm,
+                            replies: [...(cm.replies ?? []), created],
+                          }
                         : cm
                     ),
                   }));
