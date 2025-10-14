@@ -18,7 +18,10 @@ export default function CreateListingPage() {
   const { user } = useUser();
 
   const [loading, setLoading] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [progress, setProgress] = useState(0);
   const [imageUrls, setImageUrls] = useState<string[]>([]);
+
   const [form, setForm] = useState({
     title: "",
     description: "",
@@ -26,7 +29,7 @@ export default function CreateListingPage() {
     price: "",
     area: "",
     location: "",
-    phone: "", // 🆕 Added phone field
+    phone: "",
     mapUrl: "",
     amenities: "",
   });
@@ -72,6 +75,18 @@ export default function CreateListingPage() {
     } finally {
       setLoading(false);
     }
+  };
+
+  // 🧩 Helper to validate file size
+  const handleFileValidation = (files: FileList) => {
+    for (let file of Array.from(files)) {
+      const sizeInMB = file.size / (1024 * 1024);
+      if (sizeInMB > 4) {
+        toast.error(`"${file.name}" is too large. Max size is 4MB.`);
+        return false;
+      }
+    }
+    return true;
   };
 
   return (
@@ -166,7 +181,7 @@ export default function CreateListingPage() {
               />
             </div>
 
-            {/* 🆕 Phone Number */}
+            {/* Phone */}
             <div className="space-y-1">
               <Label htmlFor="phone">Phone Number</Label>
               <Input
@@ -206,21 +221,53 @@ export default function CreateListingPage() {
 
             {/* Upload Images */}
             <div className="mt-6">
-              <Label>Upload Images</Label>
+              <Label>Upload Images (Max 4MB each)</Label>
               <div className="border border-dashed border-muted-foreground/40 rounded-md p-4 mt-2">
                 <UploadButton<OurFileRouter, "imageUploader">
                   endpoint="imageUploader"
+                  onBeforeUploadBegin={(files) => {
+                    if (!handleFileValidation(files as unknown as FileList)) {
+                      throw new Error("File too large");
+                    }
+                    return files;
+                  }}
+                  onUploadBegin={() => {
+                    setUploading(true);
+                    setProgress(0);
+                    toast.message("Starting upload...");
+                  }}
+                  onUploadProgress={(p) => setProgress(p)}
                   onClientUploadComplete={(res) => {
                     const urls = res?.map((f) => f.url) || [];
                     setImageUrls((prev) => [...prev, ...urls]);
-                    toast.success("Images uploaded!");
+                    setUploading(false);
+                    setProgress(100);
+                    toast.success("Images uploaded successfully!");
                   }}
                   onUploadError={(err) => {
+                    if (err.message === "File too large") return;
                     toast.error(`Upload failed: ${err.message}`);
+                    setUploading(false);
                   }}
                 />
               </div>
 
+              {/* Progress bar */}
+              {uploading && (
+                <div className="mt-3">
+                  <div className="h-2 bg-muted-foreground/20 rounded-full overflow-hidden">
+                    <div
+                      className="h-2 bg-red-600 transition-all duration-300"
+                      style={{ width: `${progress}%` }}
+                    />
+                  </div>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    Uploading... {progress.toFixed(0)}%
+                  </p>
+                </div>
+              )}
+
+              {/* Image previews */}
               {imageUrls.length > 0 && (
                 <div className="grid grid-cols-3 gap-2 mt-3">
                   {imageUrls.map((url, i) => (
@@ -235,7 +282,7 @@ export default function CreateListingPage() {
               )}
             </div>
 
-            {/* Submit Button — themed red */}
+            {/* Submit Button */}
             <Button
               type="submit"
               disabled={loading}

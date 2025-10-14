@@ -14,11 +14,18 @@ export default function HomePage() {
     category: "",
   });
 
+  // 🕒 simple debounce timeout reference
+  const [typingTimeout, setTypingTimeout] = useState<NodeJS.Timeout | null>(
+    null
+  );
+
   const fetchListings = async () => {
     try {
       setLoading(true);
       const params = new URLSearchParams(
-        Object.entries(filters).filter(([_, v]) => v !== "")
+        Object.entries(filters)
+          .filter(([_, v]) => v !== "")
+          .map(([k, v]) => [k, v.toString().toLowerCase()]) // ✅ ensure lowercase params
       );
       const res = await fetch(`/api/listings?${params.toString()}`);
       const data = await res.json();
@@ -34,12 +41,22 @@ export default function HomePage() {
     fetchListings();
   }, []);
 
+  // 🧠 Real-time search with debounce (runs 500ms after typing stops)
+  useEffect(() => {
+    if (typingTimeout) clearTimeout(typingTimeout);
+    const timeout = setTimeout(() => {
+      fetchListings();
+    }, 500);
+    setTypingTimeout(timeout);
+    return () => clearTimeout(timeout);
+  }, [filters.location, filters.minPrice, filters.maxPrice, filters.category]);
+
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     fetchListings();
   };
 
-  // 🧮 Helper to format price to KSH
+  // 💰 Price formatter
   const formatPrice = (price: number) => {
     return `Ksh ${price.toLocaleString("en-KE", {
       minimumFractionDigits: 0,
@@ -58,8 +75,12 @@ export default function HomePage() {
             type="text"
             placeholder="Search by location or area..."
             value={filters.location}
-            onChange={(e) =>
-              setFilters({ ...filters, location: e.target.value })
+            onChange={
+              (e) =>
+                setFilters({
+                  ...filters,
+                  location: e.target.value.toLowerCase(),
+                }) // ✅ force lowercase
             }
             className="flex-1 px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
           />
@@ -148,12 +169,10 @@ export default function HomePage() {
                     {listing.description}
                   </p>
 
-                  {/* 💰 Show price in KSH */}
                   <p className="text-red-600 font-bold mb-1">
                     {formatPrice(listing.price)}
                   </p>
 
-                  {/* 📍 Show area and location */}
                   <p className="text-sm text-gray-700 mb-1">
                     {listing.area ? `${listing.area}, ` : ""}
                     {listing.location}

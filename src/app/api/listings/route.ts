@@ -37,7 +37,7 @@ export async function GET(req: Request) {
       where: whereClause,
       include: { images: true, owner: true },
       orderBy: { createdAt: "desc" },
-      take: 8, // ⬅️ limit results to 8
+      take: 6, // ⬅️ limit results to 8
     });
 
     return NextResponse.json(listings);
