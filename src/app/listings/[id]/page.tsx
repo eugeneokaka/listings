@@ -70,7 +70,6 @@ function CommentItem({
         </div>
       )}
 
-      {/* Replies */}
       {comment.replies?.length > 0 && (
         <div className="ml-6 mt-3 space-y-2 border-l pl-3">
           {comment.replies.map((r: any) => (
@@ -99,9 +98,17 @@ export default function ListingPage() {
   const [isFavorite, setIsFavorite] = useState(false);
   const [favLoading, setFavLoading] = useState(false);
 
+  // ✉️ Email modal states
+  const [showEmailModal, setShowEmailModal] = useState(false);
+  const [senderName, setSenderName] = useState("");
+  const [senderEmail, setSenderEmail] = useState("");
+  const [message, setMessage] = useState("");
+  const [sending, setSending] = useState(false);
+
   useEffect(() => {
     const fetchListing = async () => {
       try {
+        console.log("📡 Fetching listing:", id);
         const res = await fetch(`/api/listings/${id}`);
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || "Failed to load listing");
@@ -113,10 +120,13 @@ export default function ListingPage() {
           comments: data.comments ?? [],
         });
 
+        console.log("✅ Listing loaded:", data);
+
         const favRes = await fetch(`/api/favorites/check?listingId=${id}`);
         const favData = await favRes.json();
         if (favRes.ok) setIsFavorite(Boolean(favData.isFavorite));
       } catch (err: any) {
+        console.error("❌ Listing fetch error:", err);
         toast.error(err?.message || "Failed to load listing");
       } finally {
         setLoading(false);
@@ -145,6 +155,7 @@ export default function ListingPage() {
       setIsFavorite(Boolean(data.isFavorite));
       toast.success(data.message || "Updated favorite");
     } catch (err: any) {
+      console.error("❌ Favorite error:", err);
       toast.error(err?.message || "Failed to update favorite");
     } finally {
       setFavLoading(false);
@@ -163,6 +174,7 @@ export default function ListingPage() {
       if (!res.ok) throw new Error(data.error || "Failed to post");
       return data;
     } catch (err: any) {
+      console.error("❌ Comment error:", err);
       toast.error(err?.message || "Failed to post comment");
       return null;
     }
@@ -177,6 +189,56 @@ export default function ListingPage() {
       comments: [created, ...(prev?.comments ?? [])],
     }));
     setComment("");
+  };
+
+  // ✉️ Send email logic
+  const handleSendEmail = async () => {
+    console.log("📤 Attempting to send email...");
+    if (!senderName || !senderEmail || !message) {
+      toast.error("Please fill in all fields");
+      console.warn("⚠️ Missing fields", { senderName, senderEmail, message });
+      return;
+    }
+
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(senderEmail)) {
+      toast.error("Please enter a valid email address");
+      return;
+    }
+
+    try {
+      setSending(true);
+      toast.loading("Sending email...");
+
+      const res = await fetch("/api/contact", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          to: listing.owner?.email,
+          name: senderName,
+          email: senderEmail,
+          message,
+        }),
+      });
+
+      const data = await res.json();
+      console.log("📩 Email API response:", data);
+
+      toast.dismiss();
+
+      if (!res.ok) throw new Error(data.error || "Failed to send email");
+
+      toast.success("Email sent successfully!");
+      setShowEmailModal(false);
+      setSenderName("");
+      setSenderEmail("");
+      setMessage("");
+    } catch (err: any) {
+      console.error("❌ Email send error:", err);
+      toast.dismiss();
+      toast.error(err?.message || "Failed to send email");
+    } finally {
+      setSending(false);
+    }
   };
 
   if (loading)
@@ -211,7 +273,7 @@ export default function ListingPage() {
           ))}
         </div>
 
-        {/* 📋 Title + Details */}
+        {/* 📋 Details */}
         <div>
           <div className="flex items-center justify-between">
             <h1 className="text-3xl font-semibold mb-2">{listing.title}</h1>
@@ -245,16 +307,6 @@ export default function ListingPage() {
             </p>
             <p>
               <strong>Location:</strong> {listing.location}
-              {listing.mapUrl && (
-                <a
-                  href={listing.mapUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-red-600 hover:underline ml-2"
-                >
-                  View on Map
-                </a>
-              )}
             </p>
             <p>
               <strong>Category:</strong> {listing.category}
@@ -263,23 +315,6 @@ export default function ListingPage() {
               <strong>Views:</strong> {listing.views}
             </p>
           </div>
-
-          {/* 🗺️ Map URL only */}
-          {listing.mapUrl && (
-            <div className="mt-6">
-              <h2 className="font-semibold mb-2">Map Location:</h2>
-              <p className="text-sm text-gray-700 break-all">
-                <a
-                  href={listing.mapUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-red-600 hover:underline"
-                >
-                  {listing.mapUrl}
-                </a>
-              </p>
-            </div>
-          )}
 
           {/* 🏠 Amenities */}
           <div className="mt-4">
@@ -296,7 +331,7 @@ export default function ListingPage() {
             </div>
           </div>
 
-          {/* 👤 Owner + Phone */}
+          {/* 👤 Owner */}
           <div className="mt-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-t pt-4">
             <div className="flex items-center gap-3">
               <Avatar className="w-10 h-10 border">
@@ -313,23 +348,32 @@ export default function ListingPage() {
               </p>
             </div>
 
-            <p className="text-gray-700">
-              <strong>Phone:</strong>{" "}
-              {listing.phone ? (
-                <a
-                  href={`tel:${listing.phone}`}
-                  className="text-red-600 hover:underline ml-1"
-                >
-                  {listing.phone}
-                </a>
-              ) : (
-                <span className="text-gray-500 ml-1">Not provided</span>
-              )}
-            </p>
+            <div className="flex flex-col sm:flex-row items-center gap-3">
+              <p className="text-gray-700">
+                <strong>Phone:</strong>{" "}
+                {listing.phone ? (
+                  <a
+                    href={`tel:${listing.phone}`}
+                    className="text-red-600 hover:underline ml-1"
+                  >
+                    {listing.phone}
+                  </a>
+                ) : (
+                  <span className="text-gray-500 ml-1">Not provided</span>
+                )}
+              </p>
+
+              <button
+                onClick={() => setShowEmailModal(true)}
+                className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition"
+              >
+                Contact Owner
+              </button>
+            </div>
           </div>
         </div>
 
-        {/* 💬 Comments Section */}
+        {/* 💬 Comments */}
         <div className="mt-8">
           <h2 className="text-xl font-semibold mb-3">Comments</h2>
 
@@ -377,6 +421,61 @@ export default function ListingPage() {
           </div>
         </div>
       </div>
+
+      {/* ✉️ Email Modal */}
+      {showEmailModal && (
+        <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
+          <div className="bg-white rounded-xl shadow-xl p-6 w-full max-w-md relative">
+            <h2 className="text-xl font-semibold mb-3">Contact Owner</h2>
+            <input
+              type="text"
+              placeholder="Your Name"
+              value={senderName}
+              onChange={(e) => setSenderName(e.target.value)}
+              className="w-full border rounded-lg px-3 py-2 mb-2"
+            />
+            <input
+              type="email"
+              placeholder="Your Email"
+              value={senderEmail}
+              onChange={(e) => setSenderEmail(e.target.value)}
+              className="w-full border rounded-lg px-3 py-2 mb-2"
+            />
+            <textarea
+              placeholder="Your Message"
+              value={message}
+              onChange={(e) => setMessage(e.target.value)}
+              className="w-full border rounded-lg px-3 py-2 mb-3"
+              rows={4}
+            />
+            <div className="flex justify-end gap-2">
+              <button
+                onClick={() => setShowEmailModal(false)}
+                className="px-4 py-2 rounded-lg bg-gray-200 hover:bg-gray-300"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSendEmail}
+                disabled={sending}
+                className={`px-4 py-2 rounded-lg text-white transition ${
+                  sending
+                    ? "bg-red-400 cursor-not-allowed"
+                    : "bg-red-600 hover:bg-red-700"
+                }`}
+              >
+                {sending ? (
+                  <span className="flex items-center gap-2">
+                    <Loader2 className="h-4 w-4 animate-spin" /> Sending...
+                  </span>
+                ) : (
+                  "Send"
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

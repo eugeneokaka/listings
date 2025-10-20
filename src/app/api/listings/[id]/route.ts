@@ -16,7 +16,7 @@ export async function GET(
       include: {
         images: true,
         owner: {
-          select: { firstname: true, lastname: true, image: true },
+          select: { firstname: true, lastname: true, image: true, email: true },
         },
         comments: {
           where: { parentId: null }, // top-level comments only

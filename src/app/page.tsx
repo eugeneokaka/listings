@@ -8,13 +8,13 @@ export default function HomePage() {
   const [listings, setListings] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [filters, setFilters] = useState({
-    location: "",
+    city: "",
+    area: "",
     minPrice: "",
     maxPrice: "",
     category: "",
   });
 
-  // 🕒 simple debounce timeout reference
   const [typingTimeout, setTypingTimeout] = useState<NodeJS.Timeout | null>(
     null
   );
@@ -22,11 +22,20 @@ export default function HomePage() {
   const fetchListings = async () => {
     try {
       setLoading(true);
+
+      const cleanFilters = {
+        ...filters,
+        city: filters.city.trim().replace(/\s+/g, " "),
+        area: filters.area.trim().replace(/\s+/g, " "),
+        category: filters.category.trim().replace(/\s+/g, " "),
+      };
+
       const params = new URLSearchParams(
-        Object.entries(filters)
+        Object.entries(cleanFilters)
           .filter(([_, v]) => v !== "")
-          .map(([k, v]) => [k, v.toString().toLowerCase()]) // ✅ ensure lowercase params
+          .map(([k, v]) => [k, v.toString().toLowerCase()])
       );
+
       const res = await fetch(`/api/listings?${params.toString()}`);
       const data = await res.json();
       setListings(data);
@@ -41,26 +50,26 @@ export default function HomePage() {
     fetchListings();
   }, []);
 
-  // 🧠 Real-time search with debounce (runs 500ms after typing stops)
   useEffect(() => {
     if (typingTimeout) clearTimeout(typingTimeout);
-    const timeout = setTimeout(() => {
-      fetchListings();
-    }, 500);
+    const timeout = setTimeout(fetchListings, 500);
     setTypingTimeout(timeout);
     return () => clearTimeout(timeout);
-  }, [filters.location, filters.minPrice, filters.maxPrice, filters.category]);
+  }, [
+    filters.city,
+    filters.area,
+    filters.minPrice,
+    filters.maxPrice,
+    filters.category,
+  ]);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     fetchListings();
   };
 
-  // 💰 Price formatter
   const formatPrice = (price: number) => {
-    return `Ksh ${price.toLocaleString("en-KE", {
-      minimumFractionDigits: 0,
-    })}`;
+    return `Ksh ${price.toLocaleString("en-KE", { minimumFractionDigits: 0 })}`;
   };
 
   return (
@@ -73,14 +82,20 @@ export default function HomePage() {
         >
           <input
             type="text"
-            placeholder="Search by location or area..."
-            value={filters.location}
-            onChange={
-              (e) =>
-                setFilters({
-                  ...filters,
-                  location: e.target.value.toLowerCase(),
-                }) // ✅ force lowercase
+            placeholder="Search by city..."
+            value={filters.city}
+            onChange={(e) =>
+              setFilters({ ...filters, city: e.target.value.toLowerCase() })
+            }
+            className="flex-1 px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
+          />
+
+          <input
+            type="text"
+            placeholder="Search by area..."
+            value={filters.area}
+            onChange={(e) =>
+              setFilters({ ...filters, area: e.target.value.toLowerCase() })
             }
             className="flex-1 px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
           />

@@ -5,6 +5,7 @@ const isPublicRoute = createRouteMatcher([
   "/sign-in(.*)",
   "/sign-up(.*)",
   "/onboarding(.*)",
+  "/maps(.*)", // Allow maps page
   "/listings/(.*)", // Allow all listing pages
   "/api/(.*)", // Allow all API routes
 ]);
