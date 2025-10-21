@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { Loader2, Heart } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { useUser } from "@clerk/nextjs";
+import StarRating from "@/app/components/starrating";
 
 // 🧩 Comment item with reply support
 function CommentItem({
@@ -330,6 +331,8 @@ export default function ListingPage() {
               ))}
             </div>
           </div>
+          {/* ⭐ Rating Section */}
+          <StarRating listingId={id as string} />
 
           {/* 👤 Owner */}
           <div className="mt-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-t pt-4">

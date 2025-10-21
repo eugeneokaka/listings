@@ -11,11 +11,13 @@ export async function GET(req: Request) {
     const { searchParams } = new URL(req.url);
 
     const clean = (v: string | null) =>
-      v ? v.trim().replace(/\s+/g, " ").toLowerCase() : undefined;
+      v ? v.trim().replace(/\s+/g, " ") : undefined;
 
     const city = clean(searchParams.get("city"));
     const area = clean(searchParams.get("area"));
-    const category = clean(searchParams.get("category"));
+    const rawCategory = searchParams.get("category");
+    const category = rawCategory ? rawCategory.trim().toUpperCase() : undefined;
+
     const minPrice = searchParams.get("minPrice")
       ? parseFloat(searchParams.get("minPrice")!)
       : undefined;
@@ -37,16 +39,12 @@ export async function GET(req: Request) {
       where: whereClause,
       include: {
         images: true,
-        owner: {
-          select: { email: true, id: true }, // ✅ include email
-        },
+        owner: { select: { email: true, id: true } },
       },
       orderBy: { createdAt: "desc" },
       take: 6,
     });
-    console.log("Fetched listings:", listings[0]);
 
-    // Add a top-level field for easier access
     const result = listings.map((listing) => ({
       ...listing,
       ownerEmail: listing.owner?.email || null,

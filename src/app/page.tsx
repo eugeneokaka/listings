@@ -27,13 +27,10 @@ export default function HomePage() {
         ...filters,
         city: filters.city.trim().replace(/\s+/g, " "),
         area: filters.area.trim().replace(/\s+/g, " "),
-        category: filters.category.trim().replace(/\s+/g, " "),
       };
 
       const params = new URLSearchParams(
-        Object.entries(cleanFilters)
-          .filter(([_, v]) => v !== "")
-          .map(([k, v]) => [k, v.toString().toLowerCase()])
+        Object.entries(cleanFilters).filter(([_, v]) => v !== "")
       );
 
       const res = await fetch(`/api/listings?${params.toString()}`);
@@ -68,9 +65,8 @@ export default function HomePage() {
     fetchListings();
   };
 
-  const formatPrice = (price: number) => {
-    return `Ksh ${price.toLocaleString("en-KE", { minimumFractionDigits: 0 })}`;
-  };
+  const formatPrice = (price: number) =>
+    `Ksh ${price.toLocaleString("en-KE", { minimumFractionDigits: 0 })}`;
 
   return (
     <main className="min-h-screen bg-white text-black px-6 py-10">

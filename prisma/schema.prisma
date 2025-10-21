@@ -21,6 +21,7 @@ model User {
   listings    Listing[]   @relation("UserListings")
   favorites   Favorite[]  @relation("UserFavorites")
   comments    Comment[]   @relation("UserComments")
+  ratings     Rating[]    @relation("UserRatings")
 }
 
 model Listing {
@@ -37,6 +38,7 @@ model Listing {
   images      Image[]
   comments    Comment[]
   favorites   Favorite[]
+  ratings     Rating[]      @relation("ListingRatings")
   views       Int           @default(0)
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @updatedAt
@@ -63,7 +65,6 @@ model Comment {
   author     User?     @relation("UserComments", fields: [authorId], references: [id], onDelete: Cascade)
   listing    Listing   @relation(fields: [listingId], references: [id], onDelete: Cascade)
 
-  // 🧩 Self-relation for replies
   parent     Comment?  @relation("CommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
   replies    Comment[] @relation("CommentReplies")
 
@@ -80,6 +81,21 @@ model Favorite {
   createdAt DateTime @default(now())
 
   @@unique([userId, listingId])
+}
+
+model Rating {
+  id         String   @id @default(cuid())
+  userId     String
+  listingId  String
+  rate       Int      // 1–5 stars
+  number     Int      @default(1) // optional extra metric, e.g., to weight averages later
+
+  user       User     @relation("UserRatings", fields: [userId], references: [id], onDelete: Cascade)
+  listing    Listing  @relation("ListingRatings", fields: [listingId], references: [id], onDelete: Cascade)
+
+  createdAt  DateTime @default(now())
+
+  @@unique([userId, listingId]) // each user can rate a listing only once
 }
 
 enum Role {
