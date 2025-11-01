@@ -112,3 +112,82 @@ export async function POST(
     );
   }
 }
+export async function PUT(
+  req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const id = (await params).id;
+
+  try {
+    const { userId } = await auth();
+    if (!userId)
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+    const user = await prisma.user.findUnique({ where: { clerkId: userId } });
+
+    const existing = await prisma.listing.findUnique({
+      where: { id },
+      include: { images: true },
+    });
+
+    if (!existing)
+      return NextResponse.json({ error: "Listing not found" }, { status: 404 });
+    if (existing.ownerId !== user?.id)
+      return NextResponse.json({ error: "Not authorized" }, { status: 403 });
+
+    const body = await req.json();
+    const {
+      title,
+      description,
+      price,
+      area,
+      location,
+      category,
+      phone,
+      isAvailable,
+      newImages,
+      deletedImages,
+    } = body;
+
+    // Delete removed images
+    if (deletedImages?.length) {
+      await prisma.image.deleteMany({
+        where: { id: { in: deletedImages } },
+      });
+    }
+
+    // Add new images
+    if (newImages?.length) {
+      await prisma.image.createMany({
+        data: newImages.map((url: string) => ({
+          url,
+          listingId: id,
+        })),
+      });
+    }
+
+    // Update listing fields
+    const updated = await prisma.listing.update({
+      where: { id },
+      data: {
+        title,
+        description,
+        price: parseFloat(price),
+        area,
+        location,
+        category,
+        phone,
+        isAvailable,
+      },
+      include: { images: true },
+    });
+
+    return NextResponse.json(updated);
+  } catch (error) {
+    console.error("Error updating listing:", error);
+    return NextResponse.json(
+      { error: "Failed to update listing" },
+      { status: 500 }
+    );
+  }
+}

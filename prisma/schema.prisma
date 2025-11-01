@@ -13,6 +13,7 @@ model User {
   firstname   String?
   lastname    String?
   email       String      @unique
+  phone       String?     // ✅ Added phone number
   image       String?
   role        Role        @default(USER)
   verified    Boolean     @default(false)
@@ -22,6 +23,7 @@ model User {
   favorites   Favorite[]  @relation("UserFavorites")
   comments    Comment[]   @relation("UserComments")
   ratings     Rating[]    @relation("UserRatings")
+  bookings    Booking[]   // ✅ user can make many bookings
 }
 
 model Listing {
@@ -39,7 +41,11 @@ model Listing {
   comments    Comment[]
   favorites   Favorite[]
   ratings     Rating[]      @relation("ListingRatings")
+  bookings    Booking[]     // ✅ relation to bookings
+
   views       Int           @default(0)
+  isAvailable Boolean       @default(true) // ✅ shows if available
+
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @updatedAt
 
@@ -87,15 +93,42 @@ model Rating {
   id         String   @id @default(cuid())
   userId     String
   listingId  String
-  rate       Int      // 1–5 stars
-  number     Int      @default(1) // optional extra metric, e.g., to weight averages later
+  rate       Int
+  number     Int      @default(1)
 
   user       User     @relation("UserRatings", fields: [userId], references: [id], onDelete: Cascade)
   listing    Listing  @relation("ListingRatings", fields: [listingId], references: [id], onDelete: Cascade)
 
   createdAt  DateTime @default(now())
 
-  @@unique([userId, listingId]) // each user can rate a listing only once
+  @@unique([userId, listingId])
+}
+
+model Booking {
+  id          String         @id @default(cuid())
+  userId      String?
+  listingId   String
+  firstname   String?        // ✅ for external customers
+  lastname    String?        // ✅ for external customers
+  email       String?        // ✅ for external customers
+  price       Float?         // ✅ amount paid
+  startDate   DateTime?      // optional
+  endDate     DateTime?      // optional
+  eventType   String?        // optional (Wedding, Meeting, etc.)
+  status      BookingStatus  @default(PENDING)
+  createdAt   DateTime       @default(now())
+
+  user        User?          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  listing     Listing        @relation(fields: [listingId], references: [id], onDelete: Cascade)
+
+  @@index([listingId])
+}
+
+enum BookingStatus {
+  PENDING
+  CONFIRMED
+  CANCELLED
+  COMPLETED
 }
 
 enum Role {
@@ -107,4 +140,7 @@ enum Role {
 enum ListingCategory {
   RENTAL
   BNB
+  HALL
+  CONFERENCE
+  EVENT_SPACE
 }

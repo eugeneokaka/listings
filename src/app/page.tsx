@@ -189,6 +189,24 @@ export default function HomePage() {
                     {listing.location}
                   </p>
 
+                  {/* ✅ Elegant Availability Badge */}
+                  <div className="mb-2">
+                    <span
+                      className={`inline-flex items-center gap-2 px-3 py-1 text-xs font-medium rounded-full ${
+                        listing.isAvailable
+                          ? "bg-green-100 text-green-700 border border-green-300"
+                          : "bg-red-100 text-red-700 border border-red-300"
+                      }`}
+                    >
+                      <span
+                        className={`h-2.5 w-2.5 rounded-full ${
+                          listing.isAvailable ? "bg-green-500" : "bg-red-500"
+                        }`}
+                      ></span>
+                      {listing.isAvailable ? "Available" : "Not Available"}
+                    </span>
+                  </div>
+
                   <p className="text-xs text-gray-400 mb-2">
                     {listing.views} views
                   </p>

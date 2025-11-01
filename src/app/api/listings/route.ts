@@ -117,6 +117,7 @@ export async function POST(req: Request) {
         mapUrl,
         amenities,
         ownerId: user.id,
+        isAvailable: true, // ✅ default new listings are available
         images: { create: imageUrls.map((url: string) => ({ url })) },
       },
       include: { images: true },
